@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>3-Card Product Gallery — Light / Dark + Animations</title>
+  <style>
+    /* ===== Theme variables ===== */
+    :root{
+      --bg: #f6f7fb;
+      --card-bg: linear-gradient(180deg, #ffffff, #fbfdff);
+      --text: #0f1724;
+      --muted: #596379;
+      --accent: #6c6cff;
+      --card-radius: 16px;
+      --shadow-sm: 0 6px 18px rgba(12,18,35,0.06);
+      --shadow-lg: 0 20px 40px rgba(12,18,35,0.12);
+      --glass: rgba(255,255,255,0.6);
+      --transition: 320ms cubic-bezier(.2,.9,.3,1);
+    }
+
+    /* dark theme overrides */
+    :root[data-theme="dark"]{
+      --bg: #081123;
+      --card-bg: linear-gradient(180deg, #071225, #04101a);
+      --text: #e6eef8;
+      --muted: #9fb2d4;
+      --accent: #8ea2ff;
+      --shadow-sm: 0 8px 24px rgba(2,6,12,0.6);
+      --shadow-lg: 0 28px 60px rgba(1,6,12,0.7);
+      --glass: rgba(0, 0, 0, 0.35);
+    }
+
+    /* Respect user's OS theme if no explicit theme set */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme]) {
+        --bg: #081123;
+        --card-bg: linear-gradient(180deg, #071225, #04101a);
+        --text: #e6eef8;
+        --muted: #9fb2d4;
+        --accent: #8ea2ff;
+        --shadow-sm: 0 8px 24px rgba(2,6,12,0.6);
+        --shadow-lg: 0 28px 60px rgba(1,6,12,0.7);
+        --glass: rgba(0, 0, 0, 0.35);
+      }
+    }
+
+    /* ===== Global styles ===== */
+    * { box-sizing: border-box; }
+    html,body { height:100%; }
+    body{
+      margin:0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 92%, black 8%));
+      color:var(--text);
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding: clamp(18px, 3vw, 40px);
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      min-height:100vh;
+      gap:16px;
+    }
+
+    .container{
+      width:100%;
+      max-width:1100px;
+    }
+
+    header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
+    }
+
+    h1{
+      margin:0;
+      font-size:clamp(18px, 2.4vw, 22px);
+      letter-spacing:-0.2px;
+    }
+
+    p.lead{
+      margin:6px 0 0 0;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    /* Theme toggle */
+    .controls{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .toggle {
+      background:var(--card-bg);
+      border:0;
+      padding:8px;
+      border-radius:999px;
+      box-shadow:var(--shadow-sm);
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      transition:transform var(--transition), box-shadow var(--transition);
+    }
+    .toggle:active { transform:translateY(1px) scale(.99); }
+    .toggle-icon{
+      width:34px;
+      height:20px;
+      display:inline-grid;
+      place-items:center;
+      border-radius:999px;
+      background:linear-gradient(90deg, var(--muted), color-mix(in srgb, var(--muted) 60%, transparent));
+      color:var(--text);
+      font-size:12px;
+      padding:2px;
+      line-height:1;
+    }
+
+    /* ===== Grid of cards ===== */
+    .grid{
+      display:grid;
+      gap:20px;
+      grid-template-columns: repeat(1,1fr);
+    }
+
+    @media (min-width:640px){
+      .grid{ grid-template-columns: repeat(2,1fr); }
+    }
+    @media (min-width:980px){
+      .grid{ grid-template-columns: repeat(3,1fr); }
+    }
+
+    .card{
+      position:relative;
+      border-radius:var(--card-radius);
+      overflow:hidden;
+      background:var(--card-bg);
+      box-shadow:var(--shadow-sm);
+      transform-origin:center;
+      transition: transform var(--transition), box-shadow var(--transition);
+      min-height:360px;
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-end;
+      isolation:isolate;
+      user-select:none;
+      opacity:0;
+      transform: translateY(18px) scale(.995);
+    }
+
+    /* Entrance visible state (will be toggled by JS) */
+    .card.visible{
+      opacity:1;
+      transform:translateY(0) scale(1);
+      transition: opacity 420ms ease, transform 540ms cubic-bezier(.2,.9,.3,1), box-shadow var(--transition);
+    }
+
+    .card:focus-within, .card:hover{
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* image area */
+    .card-media{
+      position:absolute;
+      inset:0;
+      background-size:cover;
+      background-position:center;
+      filter: saturate(1.05) contrast(1.02);
+      transition: transform var(--transition) ease, filter var(--transition);
+      z-index:0;
+      will-change: transform;
+    }
+    .card:hover .card-media,
+    .card:focus-within .card-media{
+      transform: scale(1.06) translateZ(0);
+      filter: saturate(1.06) contrast(1.08);
+    }
+
+    /* soft gradient overlay */
+    .card::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.42));
+      pointer-events:none;
+      mix-blend-mode:multiply;
+      z-index:1;
+    }
+    :root[data-theme="dark"] .card::after{
+      background:linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.6));
+    }
+
+    /* card content area */
+    .card-body{
+      position:relative;
+      z-index:2;
+      padding:20px;
+      display:flex;
+      gap:12px;
+      align-items:flex-end;
+      justify-content:space-between;
+      color:var(--text);
+      backdrop-filter: blur(6px);
+    }
+
+    .meta{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      max-width:65%;
+    }
+    .product-title{
+      margin:0;
+      font-weight:600;
+      letter-spacing:-0.2px;
+      font-size:16px;
+    }
+    .price{
+      font-weight:700;
+      font-size:15px;
+      margin-top:4px;
+      color:var(--accent);
+    }
+    .desc{
+      margin:0;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    /* overlay CTA that appears on hover */
+    .card-cta{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      opacity:0;
+      transform: translateY(8px);
+      transition: opacity 260ms var(--transition), transform 260ms var(--transition);
+    }
+    .card:hover .card-cta,
+    .card:focus-within .card-cta{
+      opacity:1;
+      transform:none;
+    }
+
+    .btn{
+      border:0;
+      background:linear-gradient(90deg, var(--accent), color-mix(in srgb,var(--accent) 85%, white));
+      color:white;
+      padding:10px 14px;
+      border-radius:12px;
+      font-weight:600;
+      cursor:pointer;
+      box-shadow: 0 6px 20px rgba(108,108,255,0.18);
+      transition: transform 180ms ease, opacity 180ms ease;
+    }
+    .btn:active{ transform: translateY(1px) scale(.998); }
+    .ghost{
+      background:transparent;
+      color:var(--text);
+      border:1px solid color-mix(in srgb, var(--text) 12%, transparent);
+      padding:8px 10px;
+      border-radius:10px;
+      font-weight:600;
+    }
+
+    /* small tag in top-left */
+    .tag{
+      position:absolute;
+      left:12px;
+      top:12px;
+      z-index:3;
+      background: linear-gradient(90deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
+      backdrop-filter: blur(6px);
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      color:var(--text);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* accessibility focus ring for keyboard users */
+    :focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset:4px; border-radius:8px; }
+
+    /* small responsive adjustments */
+    @media (max-width:420px){
+      .card-body{ padding:14px; }
+      .product-title{ font-size:15px; }
+      .price{ font-size:14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <header>
+      <div>
+        <h1>Product Gallery</h1>
+        <p class="lead">3 curated items — hover or focus a card to reveal quick actions. Theme saved to your browser.</p>
+      </div>
+
+      <div class="controls" aria-hidden="false">
+        <button id="themeToggle" class="toggle" aria-pressed="false" title="Toggle theme">
+          <span class="toggle-icon" id="themeIcon">🌙</span>
+          <span style="font-size:13px; color:var(--muted);">Theme</span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="grid" id="gallery" aria-label="Product gallery">
+        <!-- Card 1: Nordic Knit Beanie -->
+        <article class="card" tabindex="0" data-src="">
+          <div class="card-media" style="background-image: linear-gradient(135deg, rgba(220,230,255,0.12), rgba(240,245,255,0.04)), url('https://lauradalgaard.com/cdn/shop/files/455-2_Rauma_nordicKnitprodukt240077ret.jpg?v=1732537220');"></div>
+          <div class="tag">Limited</div>
+
+          <div class="card-body">
+            <div class="meta">
+              <h3 class="product-title">Nordic Knit Beanie</h3>
+              <p class="desc">Soft wool blend, warm knit pattern — cozy companion for cold mornings.</p>
+              <div class="price">$26</div>
+            </div>
+
+            <div class="card-cta" role="group" aria-label="Quick actions">
+              <button class="btn" aria-label="Add Nordic Knit Beanie to cart">Add to cart</button>
+              <button class="ghost" aria-label="Preview Nordic Knit Beanie details">Preview</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Card 2: Moonlight Silk Scarf -->
+        <article class="card" tabindex="0" data-src="">
+          <div class="card-media" style="background-image: linear-gradient(135deg, rgba(255,200,180,0.14), rgba(255,240,230,0.04)), url('https://helenruth.co.uk/wp-content/uploads/2015/11/Moonlight-model.jpg');"></div>
+          <div class="tag">New</div>
+
+          <div class="card-body">
+            <div class="meta">
+              <h3 class="product-title">Moonlight Silk Scarf</h3>
+              <p class="desc">Lightweight silk blend with a soft shimmer — perfect for day-to-night styling.</p>
+              <div class="price">$48</div>
+            </div>
+
+            <div class="card-cta" role="group" aria-label="Quick actions">
+              <button class="btn" aria-label="Add Moonlight Silk Scarf to cart">Add to cart</button>
+              <button class="ghost" aria-label="Preview Moonlight Silk Scarf details">Preview</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Card 3: AeroSport Water Bottle -->
+        <article class="card" tabindex="0" data-src="">
+          <div class="card-media" style="background-image: linear-gradient(135deg, rgba(220,255,230,0.12), rgba(240,255,245,0.04)), url('https://johnnyjet.com/wp-content/uploads/2024/07/water-bottles.jpg'); background-position: center 30%;"></div>
+          <div class="tag">Best seller</div>
+
+          <div class="card-body">
+            <div class="meta">
+              <h3 class="product-title">AeroSport Water Bottle</h3>
+              <p class="desc">Insulated stainless steel, 24oz. Keeps drinks cold for 24 hours or hot for 12.</p>
+              <div class="price">$32</div>
+            </div>
+
+            <div class="card-cta" role="group" aria-label="Quick actions">
+              <button class="btn" aria-label="Add AeroSport Water Bottle to cart">Add to cart</button>
+              <button class="ghost" aria-label="Preview AeroSport Water Bottle details">Preview</button>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Theme toggle with persistence
+    (function(){
+      const root = document.documentElement;
+      const btn = document.getElementById('themeToggle');
+      const icon = document.getElementById('themeIcon');
+
+      // Read saved preference
+      const saved = localStorage.getItem('theme'); // "light" | "dark" | null
+
+      function applyTheme(theme){
+        if(theme === 'dark'){
+          root.setAttribute('data-theme', 'dark');
+          icon.textContent = '🌙';
+          btn.setAttribute('aria-pressed', 'true');
+        } else if(theme === 'light'){
+          root.setAttribute('data-theme', 'light');
+          icon.textContent = '☀️';
+          btn.setAttribute('aria-pressed', 'false');
+        } else {
+          root.removeAttribute('data-theme');
+          const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          icon.textContent = dark ? '🌙' : '☀️';
+        }
+      }
+
+      // initialize
+      applyTheme(saved);
+
+      // toggle logic: cycles light <-> dark
+      btn.addEventListener('click', () => {
+        const current = root.getAttribute('data-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const next = current === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+        localStorage.setItem('theme', next);
+      });
+
+      // Allow pressing 't' to toggle theme as a small shortcut
+      window.addEventListener('keydown', (e) => {
+        if(e.key.toLowerCase() === 't' && (e.target === document.body || e.target === document.documentElement)){
+          btn.click();
+        }
+      });
+    })();
+
+    // IntersectionObserver to add .visible with staggered delay
+    (function(){
+      const cards = document.querySelectorAll('.card');
+      const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+          if(entry.isIntersecting){
+            const index = Array.from(cards).indexOf(entry.target);
+            setTimeout(() => entry.target.classList.add('visible'), index * 120);
+            obs.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.12 });
+
+      cards.forEach(c => observer.observe(c));
+    })();
+
+    // Tiny preview modal
+    (function(){
+      function makePreview(){
+        const modal = document.createElement('div');
+        modal.id = 'preview';
+        modal.style.position = 'fixed';
+        modal.style.top = 0;
+        modal.style.left = 0;
+        modal.style.right = 0;
+        modal.style.bottom = 0;
+        modal.style.display = 'none';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.backdropFilter = 'blur(6px)';
+        modal.style.background = 'rgba(0,0,0,0.45)';
+        modal.style.zIndex = 9999;
+
+        const box = document.createElement('div');
+        box.style.width = 'min(720px, 92vw)';
+        box.style.background = 'var(--card-bg)';
+        box.style.borderRadius = '14px';
+        box.style.padding = '18px';
+        box.style.boxShadow = 'var(--shadow-lg)';
+        box.style.color = 'var(--text)';
+        box.style.maxHeight = '86vh';
+        box.style.overflow = 'auto';
+
+        const close = document.createElement('button');
+        close.textContent = 'Close';
+        close.className = 'ghost';
+        close.style.float = 'right';
+
+        const content = document.createElement('div');
+        content.style.marginTop = '8px';
+
+        box.appendChild(close);
+        box.appendChild(content);
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+
+        close.addEventListener('click', () => {
+          modal.style.display = 'none';
+          modal.setAttribute('aria-hidden', 'true');
+        });
+
+        modal.addEventListener('click', (e) => {
+          if(e.target === modal) { close.click(); }
+        });
+
+        return { modal, content, open: (html) => {
+          content.innerHTML = html;
+          modal.style.display = 'flex';
+          modal.setAttribute('aria-hidden', 'false');
+        }};
+      }
+
+      const preview = makePreview();
+
+      document.querySelectorAll('.ghost').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          const card = e.target.closest('.card');
+          const title = card.querySelector('.product-title')?.textContent || 'Item';
+          const desc = card.querySelector('.desc')?.textContent || '';
+          const price = card.querySelector('.price')?.textContent || '';
+          const img = card.querySelector('.card-media')?.style.backgroundImage || '';
+          const html = `
+            <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+              <div style="flex:1 1 220px; min-width:220px; height:220px; background:${img}; background-size:cover; background-position:center; border-radius:10px;"></div>
+              <div style="flex:2 1 320px;">
+                <h2 style="margin:0 0 8px 0">${title} <span style="color:var(--accent); font-weight:700; margin-left:8px">${price}</span></h2>
+                <p style="margin:0 0 12px 0; color:var(--muted)">${desc}</p>
+                <p style="margin:0 0 14px 0">This is a lightweight preview modal. Replace this with a real product detail view where necessary.</p>
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                  <button class="btn">Add to cart</button>
+                  <button class="ghost" onclick="document.getElementById('preview').style.display='none'">Close</button>
+                </div>
+              </div>
+            </div>
+          `;
+          preview.open(html);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
